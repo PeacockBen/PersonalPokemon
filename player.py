@@ -10,7 +10,7 @@ class Player:
         self.desired_width = 32
         self.scale_factor = self.desired_width / self.frame_width
         self.desired_height = int(self.frame_height * self.scale_factor)
-        self.position = [80, 112]  # Initial position of the player
+        self.position = [80, 100]  # Initial position of the player
         self.current_frame = self.get_frame(13, 11)  # Initial frame
         self.target_position = self.position.copy()
         self.moving = False

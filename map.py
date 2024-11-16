@@ -23,7 +23,14 @@ class Map:
                 'z_index': 2,                 # Z-index for tree (higher than grass)
                 'collidable': True            # Tree tiles are collidable
             },
-            # Add more tiles as needed
+            'bush': {
+                'position': (136, 2279),           # Position of the bush tile in the tilesheet
+                'size': (15, 16),                   # Size of the bush tile
+                'override_size': (32, 32),          # Override size for bush tile
+                'anchor': 'bottom-center',          # Anchor point for bush
+                'z_index': 1,                       # Z-index for bush (between grass and tree)
+                'collidable': False                 # Bush tiles are not collidable
+            }
         }
         self.collision_rects = []  # List to store collision rectangles
         self.load_tiles()
@@ -33,15 +40,24 @@ class Map:
         sheet = pygame.image.load(self.tilesheet).convert_alpha()
         # Calculate scale factor
         scale_factor = self.scaled_tile_size / self.base_tile_size
+        
         for key, data in self.tile_metadata.items():
             x, y = data['position']
             width, height = data['size']
             rect = pygame.Rect(x, y, width, height)
             tile = sheet.subsurface(rect)
-            # Scale the tile to the desired size
-            scaled_width = int(width * scale_factor)
-            scaled_height = int(height * scale_factor)
-            tile = pygame.transform.scale(tile, (scaled_width, scaled_height))
+            
+            # Check for a specific override size in the metadata
+            if 'override_size' in data:
+                # Use the override size if specified
+                override_width, override_height = data['override_size']
+                tile = pygame.transform.scale(tile, (override_width, override_height))
+            else:
+                # Otherwise, scale using the general scale factor
+                scaled_width = int(width * scale_factor)
+                scaled_height = int(height * scale_factor)
+                tile = pygame.transform.scale(tile, (scaled_width, scaled_height))
+            
             self.tiles[key] = tile
 
     def print_collision_map(self):
@@ -169,7 +185,8 @@ class Map:
                 for tile_key in tile_keys:
                     if tile_key in self.tiles:
                         z_index = self.tile_metadata[tile_key].get('z_index', 0)
-                        if z_index > 0:  # Only consider overlay elements
+
+                        if z_index > 1:  # Only consider overlay elements
                             tile = self.tiles[tile_key]
                             tile_width, tile_height = tile.get_size()
 
@@ -191,3 +208,35 @@ class Map:
                             if (before_player and tile_bottom_y <= player.position[1] + player.desired_height // 2) or \
                             (not before_player and tile_bottom_y > player.position[1] + player.desired_height // 2):
                                 surface.blit(tile, (draw_x, draw_y))
+
+    def draw_z1_overlay(self, surface, camera_offset=(0, 0)):
+        camera_x, camera_y = camera_offset
+
+        for y, row in enumerate(self.map_array):
+            for x, tile_keys in enumerate(row):
+                if not isinstance(tile_keys, list):
+                    tile_keys = [tile_keys]
+                for tile_key in tile_keys:
+                    if tile_key in self.tiles:
+                        z_index = self.tile_metadata[tile_key].get('z_index', 0)
+                        
+                        # Only draw z=1 items
+                        if z_index == 1:
+                            tile = self.tiles[tile_key]
+                            tile_width, tile_height = tile.get_size()
+
+                            # Calculate the base position in world coordinates
+                            base_x = x * self.scaled_tile_size
+                            base_y = y * self.scaled_tile_size
+
+                            # Adjust for anchor
+                            anchor = self.tile_metadata[tile_key].get('anchor', 'top-left')
+                            if anchor == 'bottom-center':
+                                draw_x = base_x + (self.scaled_tile_size // 2) - (tile_width // 2) - camera_x
+                                draw_y = base_y + self.scaled_tile_size - tile_height - camera_y
+                            else:  # 'top-left' anchor
+                                draw_x = base_x - camera_x
+                                draw_y = base_y - camera_y
+
+                            # Draw the tile
+                            surface.blit(tile, (draw_x, draw_y))
