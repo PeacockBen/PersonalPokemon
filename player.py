@@ -10,7 +10,7 @@ class Player:
         self.desired_width = 32
         self.scale_factor = self.desired_width / self.frame_width
         self.desired_height = int(self.frame_height * self.scale_factor)
-        self.position = [64, 64]  # Initial position of the player
+        self.position = [80, 112]  # Initial position of the player
         self.current_frame = self.get_frame(13, 11)  # Initial frame
         self.target_position = self.position.copy()
         self.moving = False
@@ -59,12 +59,18 @@ class Player:
             elif direction == 'down':
                 new_target_position[1] += self.step_distance
 
-            # Convert position to map grid coordinates
-            grid_x = new_target_position[0] // game_map.scaled_tile_size
-            grid_y = new_target_position[1] // game_map.scaled_tile_size
+            # Correctly position the collision rectangle at the feet or lower half
+            collision_width = self.desired_width // 2  # Adjust to fit the lower half
+            collision_height = self.desired_height // 4  # Focus on the bottom quarter for collisions
+            player_rect = pygame.Rect(
+                new_target_position[0] - (collision_width // 2),  # Center horizontally
+                new_target_position[1] + (self.desired_height // 2)-32,  # Start from halfway down
+                collision_width,
+                collision_height
+            )
 
-            # Check if the new position is collidable
-            if not game_map.is_collidable(grid_x, grid_y):
+            # Check for collision
+            if not game_map.is_collidable(player_rect):
                 # If not collidable, update the target position
                 self.target_position = new_target_position
                 self.direction = direction
@@ -112,16 +118,11 @@ class Player:
                     self.frame_index = (self.frame_index + 1) % len(self.frames[self.direction])
                     self.current_frame = self.frames[self.direction][self.frame_index]
 
-    def draw(self, screen):
+    def draw(self, screen, screen_width, screen_height):
         # Get the size of the current frame
         sprite_width, sprite_height = self.current_frame.get_size()
-        # Adjust the position so that the bottom center of the sprite aligns with the player's position
-        draw_x = self.position[0] + (32 - sprite_width) // 2
-        draw_y = self.position[1] + 32 - sprite_height
-        
-        # Small adjustment for the 'down' direction to avoid leg clipping
-        if self.direction == 'down':
-            draw_y -= 2  # Lift the player slightly to ensure legs are not cropped
-
+        # Adjust the position so that the bottom center of the sprite aligns with the center of the screen
+        draw_x = screen_width // 2 - sprite_width // 2
+        draw_y = screen_height // 2 - sprite_height + self.desired_height // 2
         # Draw the player frame on the screen at the calculated position
         screen.blit(self.current_frame, (draw_x, draw_y))
